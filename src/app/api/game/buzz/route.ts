@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     // Trigger Pusher event to notify clients
     // Send only the new buzz data to avoid sending large state repeatedly
-    await triggerPusherEvent(gameId, 'new-buzz', newBuzz);
+    await triggerPusherEvent(gameId, 'new-buzz', { ...newBuzz }); // Use object spreading
 
     return NextResponse.json({ success: true, buzz: newBuzz });
 
