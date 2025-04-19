@@ -30,6 +30,7 @@ export default function PlayerPage() {
 
   const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
     if (!gameId) {
@@ -81,32 +82,49 @@ export default function PlayerPage() {
       cluster: pusherCluster,
     });
 
-    client.connection.bind('error', (err: { error?: { data?: { message?: string } } }) => {
-      console.error('Pusher connection error:', err);
-       setError((prev) => prev ? `${prev} & Pusher connection failed.` : `Pusher connection failed: ${err.error?.data?.message || 'Error'}`);
-    });
-
     client.connection.bind('connected', () => {
       console.log('Pusher connected successfully!');
-      setError((prev) => prev?.includes('Pusher') && !prev?.includes('&') ? null : prev);
+      setIsConnected(true);
+      setError((prev) => prev?.includes('Pusher') ? null : prev);
     });
     
-     client.connection.bind('disconnected', () => {
+    client.connection.bind('disconnected', () => {
       console.warn('Pusher disconnected.');
+      setIsConnected(false);
+    });
+
+    client.connection.bind('error', (err: { error?: { data?: { message?: string } } }) => {
+      console.error('Pusher connection error:', err);
+      setIsConnected(false);
+      setError((prev) => prev ? `${prev} & Pusher connection failed.` : `Pusher connection failed: ${err.error?.data?.message || 'Error'}`);
+    });
+
+    client.connection.bind('connecting', () => setIsConnected(false));
+    client.connection.bind('failed', () => {
+      console.error('Pusher connection failed.');
+      setIsConnected(false);
+      setError((prev) => prev ? `${prev} & Pusher connection failed.` : 'Pusher connection failed.');
+    });
+    client.connection.bind('unavailable', () => {
+      console.error('Pusher connection unavailable.');
+      setIsConnected(false);
+      setError((prev) => prev ? `${prev} & Pusher connection unavailable.` : 'Pusher connection unavailable.');
     });
 
     setPusherClient(client);
+    setIsConnected(client.connection.state === 'connected');
 
     return () => {
       console.log('Disconnecting Pusher client...');
       client.disconnect();
       setPusherClient(null);
+      setIsConnected(false);
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
-    if (!pusherClient || !gameId || error) {
-       if (channel) {
+    if (!pusherClient || !gameId || error || !isConfigured) {
+      if (channel) {
         console.log(`Unsubscribing from Pusher channel: ${channel.name}`);
         channel.unbind_all(); 
         pusherClient?.unsubscribe(channel.name);
@@ -164,8 +182,8 @@ export default function PlayerPage() {
   };
 
   const handleBuzz = async () => {
-    if (!isConfigured || !gameId || !pusherClient || pusherClient.connection.state !== 'connected') {
-      console.warn('Buzz attempt blocked:', { isConfigured, gameId, pusherConnected: pusherClient?.connection.state });
+    if (!isConfigured || !gameId || !isConnected) {
+      console.warn('Buzz attempt blocked:', { isConfigured, gameId, isConnected });
       return;
     }
 
@@ -262,6 +280,13 @@ export default function PlayerPage() {
     );
   }
 
+  console.log('Rendering PlayerPage button state:', {
+    isConnected: isConnected,
+    pusherState: pusherClient?.connection?.state,
+    selectedTeam: selectedTeam,
+    teamColor: getTeamColor(selectedTeam),
+  });
+
   return (
     <div className="container mx-auto p-4 flex flex-col justify-center items-center min-h-screen bg-background text-foreground">
       <div className="flex flex-col items-center space-y-4">
@@ -275,15 +300,12 @@ export default function PlayerPage() {
         <p className="text-lg">Ready, <span className="font-semibold">{name}</span> ({selectedTeam} Team)?</p>
         <Button
           onClick={handleBuzz}
-          disabled={!pusherClient || pusherClient.connection.state !== 'connected'} 
+          disabled={!isConnected}
           className={`w-64 h-64 rounded-full text-4xl font-bold text-white shadow-lg transition-all duration-150 ease-in-out
                       active:scale-95
-                      ${(!pusherClient || pusherClient.connection.state !== 'connected') ? 'cursor-not-allowed' : ''}` // Remove bg-gray-500, keep cursor
-          }
+                      ${!isConnected ? 'cursor-not-allowed' : ''}`}
           style={{
-            backgroundColor: (!pusherClient || pusherClient.connection.state !== 'connected')
-              ? '#6b7280' // Explicitly set gray hex when disabled
-              : getTeamColor(selectedTeam) // Team color when enabled
+            backgroundColor: !isConnected ? '#6b7280' : getTeamColor(selectedTeam)
           }}
          >
            BUZZ!
