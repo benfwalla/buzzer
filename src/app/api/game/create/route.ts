@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Invalid number of teams. Must be between 1 and ${TEAM_COLORS.length}.` }, { status: 400 });
     }
 
-    const gameId = nanoid(6); // Generate a short unique ID
+    const gameId = nanoid(4); // Generate a short unique ID
     const teams = TEAM_COLORS.slice(0, numTeams);
 
     const initialGameState: GameState = {

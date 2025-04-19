@@ -242,12 +242,12 @@ export default function PlayerPage() {
           <CardHeader>
             <CardTitle className="text-center">Join Game: {gameId}</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col space-y-4">
+          <CardContent className="flex flex-col space-y-4 mt-4"> 
             {error && (
               <p className="text-center text-sm text-red-600 mb-2">{error}</p>
             )}
             <div>
-              <Label htmlFor="name">Your Name</Label>
+              <Label htmlFor="name" className="mb-1 block">Your Name</Label> 
               <Input
                 id="name"
                 value={name}
@@ -257,7 +257,7 @@ export default function PlayerPage() {
               />
             </div>
             <div>
-              <Label htmlFor="team">Select Team</Label>
+              <Label htmlFor="team" className="mb-1 block">Select Team</Label> 
               <Select value={selectedTeam} onValueChange={setSelectedTeam}>
                 <SelectTrigger id="team">
                   <SelectValue placeholder="Select your team" />
@@ -271,7 +271,7 @@ export default function PlayerPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleJoin} className="w-full" disabled={availableTeams.length === 0}>
+            <Button onClick={handleJoin} className="w-full cursor-pointer" disabled={availableTeams.length === 0}>
               {availableTeams.length > 0 ? 'Join' : 'Waiting for Host...'}
             </Button>
           </CardContent>
@@ -301,16 +301,16 @@ export default function PlayerPage() {
         <Button
           onClick={handleBuzz}
           disabled={!isConnected}
-          className={`w-64 h-64 rounded-full text-4xl font-bold text-white shadow-lg transition-all duration-150 ease-in-out
+          className={`w-64 h-64 rounded-full text-4xl font-bold text-white shadow-lg transition-all duration-150 ease-in-out 
                       active:scale-95
-                      ${!isConnected ? 'cursor-not-allowed' : ''}`}
+                      ${!isConnected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           style={{
             backgroundColor: !isConnected ? '#6b7280' : getTeamColor(selectedTeam)
           }}
          >
            BUZZ!
          </Button>
-        <Button onClick={() => {setIsConfigured(false); setError(null);}} variant="link" size="sm" className="mt-6 text-muted-foreground">
+        <Button onClick={() => {setIsConfigured(false); setError(null);}} variant="link" size="sm" className="mt-6 text-muted-foreground cursor-pointer">
           Change Name/Team
         </Button>
       </div>

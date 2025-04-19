@@ -199,15 +199,16 @@ export default function HostPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button
+            <Button 
               onClick={handleCreateGame}
-              className="w-full text-lg py-6 shadow-md"
-              size="lg"
               disabled={pusherConnectionState !== 'connected'}
+              className="w-full py-3 text-lg cursor-pointer" 
             >
-              {pusherConnectionState === 'connected' ? 'Start Game' :
-               pusherConnectionState === 'connecting' ? 'Connecting...' :
-               `Pusher: ${pusherConnectionState}`}
+              {pusherConnectionState === 'connected' ? 'Start Game' : (
+                <div className="flex items-center justify-center">
+                  {pusherConnectionState === 'connecting' ? 'Connecting...' : `Pusher: ${pusherConnectionState}`}
+                </div>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -246,7 +247,7 @@ export default function HostPage() {
                               className={`font-semibold ${index === 0 ? 'text-3xl font-bold' : 'text-xl'}`} // Larger first place name
                               style={{ color: textColor }}
                             >
-                              {index + 1}. {buzz.name} ({buzz.team}) {/* Added team name */}
+                              {index + 1}. {buzz.name} 
                             </span>
                             <span
                               className={`font-mono ${index === 0 ? 'text-xl font-semibold' : 'text-base'} pl-3`} // Adjusted time font
@@ -285,7 +286,7 @@ export default function HostPage() {
             </Card>
 
             {/* Action Buttons */}
-            <Button onClick={handleResetBuzzes} variant="destructive" size="lg" className="w-full shadow-md text-lg py-6">
+            <Button onClick={handleResetBuzzes} variant="destructive" size="lg" className="w-full shadow-md text-lg py-6 cursor-pointer"> 
               Reset Buzzes
             </Button>
             <Button onClick={() => {
@@ -294,7 +295,7 @@ export default function HostPage() {
               setGameUrl('');
               setTeams([]);
               setBuzzes([]);
-            }} variant="outline" size="lg" className="w-full shadow-md text-lg py-6">
+            }} variant="outline" size="lg" className="w-full shadow-md text-lg py-6 cursor-pointer"> 
               End Game & Setup New One
             </Button>
           </div>
