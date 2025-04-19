@@ -257,15 +257,21 @@ export default function PlayerPage() {
               />
             </div>
             <div>
-              <Label htmlFor="team" className="mb-1 block">Select Team</Label> 
+              <Label htmlFor="team-select" className="mb-1 block">Select Team</Label> 
               <Select value={selectedTeam} onValueChange={setSelectedTeam}>
-                <SelectTrigger id="team">
+                <SelectTrigger id="team-select">
                   <SelectValue placeholder="Select your team" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent> 
                   {availableTeams.map((team) => (
-                    <SelectItem key={team} value={team}>
-                      {team}
+                    <SelectItem key={team} value={team}> 
+                      <div className="flex items-center"> 
+                        <div 
+                          className="w-3 h-3 rounded-full inline-block mr-2" 
+                          style={{ backgroundColor: getTeamColor(team) }} 
+                        />
+                        <span>{team}</span> 
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

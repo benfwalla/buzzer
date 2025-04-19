@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { RefreshCw } from 'lucide-react';
 import { getTeamColor, getContrastingTextColor } from '@/lib/utils';
 
 interface PlayerBuzz {
@@ -214,13 +215,19 @@ export default function HostPage() {
         </Card>
       ) : (
         /* --- Active Game Screen (Two Columns) --- */
-        <div className="w-full max-w-7xl flex flex-col lg:flex-row gap-6 lg:gap-8 mt-4">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 w-full max-w-7xl mx-auto">
 
           {/* --- Left Column (Buzz Queue) --- */}
-          <div className="flex-grow lg:w-2/3 order-2 lg:order-1">
-            <Card className="w-full h-full shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-2xl">Buzz Queue</CardTitle>
+          <div className="lg:w-2/3 order-2 lg:order-1"> 
+            <Card className="shadow-xl h-full">
+              <CardHeader className="pb-2"> 
+                <div className="flex justify-between items-center"> 
+                  <CardTitle className="text-2xl">The Buzz Board</CardTitle> 
+                  <Button onClick={handleResetBuzzes} variant="ghost" size="icon" className="text-muted-foreground hover:text-primary cursor-pointer border rounded-md"> 
+                    <RefreshCw className="h-5 w-5" />
+                    <span className="sr-only">Reset Buzzes</span>
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="pt-2 pb-4 px-4">
                 {buzzes.length === 0 ? (
@@ -233,11 +240,11 @@ export default function HostPage() {
                       const timeDiff = index > 0 ? buzz.time - buzzes[0].time : 0;
 
                       return (
-                        <div
+                        <div 
                           key={`${buzz.name}-${buzz.team}-${buzz.time}`}
-                          className={`rounded-lg transition-all duration-150 ease-in-out
+                          className={`rounded-lg transition-all duration-150 ease-in-out 
                             ${index === 0
-                              ? 'p-4 mb-3 shadow-md border-2 border-primary ring-2 ring-primary/30' // Enhanced first place
+                              ? 'p-4 mb-3 shadow-lg border border-primary/50' // Enhanced first place: softer shadow + border
                               : 'p-3 mb-2 shadow'}` // Regular items
                           }
                           style={{ backgroundColor: bgColor }}
@@ -266,38 +273,54 @@ export default function HostPage() {
           </div>
 
           {/* --- Right Column (Info & Actions) --- */}
-          <div className="lg:w-1/3 flex flex-col space-y-4 order-1 lg:order-2">
-            {/* Game Info Card */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl">Game Info</CardTitle>
+          <div className="lg:w-1/3 flex flex-col space-y-4 order-1 lg:order-2"> 
+            {/* Game Info Card */} 
+            <Card className="shadow-lg"> 
+              <CardHeader className="pt-1 flex flex-row items-center justify-between"> 
+                <CardTitle className="text-xl">Game Info</CardTitle> 
+                <Button onClick={() => { 
+                    setError(null);
+                    setGameId(null);
+                    setGameUrl('');
+                    setTeams([]);
+                    setBuzzes([]);
+                  }} variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive px-2 cursor-pointer border rounded-md"> 
+                  End 
+                </Button>
               </CardHeader>
-              <CardContent className="flex flex-col items-center space-y-3 pt-2 pb-4 px-4">
-                <p className="text-sm text-muted-foreground text-center">Players join using the link or QR code:</p>
+              <CardContent className="flex flex-col items-center space-y-2 p-2"> 
+                {/* --- Join Info --- */} 
+                <p className="text-sm text-muted-foreground text-center">Join game here:</p> 
                 <a href={gameUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-all text-center text-sm font-medium">
                   {gameUrl}
                 </a>
-                <div className="bg-white p-2 rounded-md inline-block shadow mt-1">
-                  <QRCode value={gameUrl} size={128} />
+                <div className="bg-white p-1 rounded-md inline-block shadow mt-1 mb-2"> 
+                  <QRCode value={gameUrl} size={96} />
                 </div>
-                <Separator className="my-3" />
-                <p className="text-base font-medium">Teams: <span className="font-normal">{teams.join(', ')}</span></p>
+
+                {/* --- Teams Display (Color Circles) --- */} 
+                {teams.length > 0 && ( 
+                  <div className="flex items-center space-x-2"> 
+                    <span className="text-sm font-medium">Teams:</span>
+                    <div className="flex space-x-1"> 
+                      {teams.map((team) => (
+                        <div
+                          key={team}
+                          className="w-4 h-4 rounded-full" 
+                          style={{ backgroundColor: getTeamColor(team) }}
+                          title={team} // Tooltip for team name
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )} 
+
+                {/* Removed Teams text list and End Game button */}
+                
               </CardContent>
             </Card>
 
-            {/* Action Buttons */}
-            <Button onClick={handleResetBuzzes} variant="destructive" size="lg" className="w-full shadow-md text-lg py-6 cursor-pointer"> 
-              Reset Buzzes
-            </Button>
-            <Button onClick={() => {
-              setError(null);
-              setGameId(null);
-              setGameUrl('');
-              setTeams([]);
-              setBuzzes([]);
-            }} variant="outline" size="lg" className="w-full shadow-md text-lg py-6 cursor-pointer"> 
-              End Game & Setup New One
-            </Button>
+            {/* Action Buttons Removed */}
           </div>
 
         </div>
