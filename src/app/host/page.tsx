@@ -31,6 +31,8 @@ export default function HostPage() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [gameUrl, setGameUrl] = useState<string>('');
 
+  console.log('HostPage render: numTeams =', numTeams, 'gameId =', gameId);
+
   const socketInitializer = useCallback(async () => {
     // Ensure only one connection
     if (socket) return;
@@ -71,18 +73,24 @@ export default function HostPage() {
     socketInitializer();
   }, [socketInitializer]);
 
+  // Function to handle game creation
   const handleCreateGame = () => {
-    if (socket) {
+    console.log('handleCreateGame called. Socket available?', !!socket);
+    if (socket && numTeams > 0) {
+      console.log('Emitting createGame with numTeams:', numTeams);
       socket.emit('create-game', { numTeams }, (response: { gameId: string; teams: string[] }) => {
-        setGameId(response.gameId);
-        setTeams(response.teams);
-        setBuzzes([]); // Clear any previous buzzes
-        setStartTime(null);
-        const url = `${window.location.origin}/${response.gameId}`;
-        setGameUrl(url);
-        console.log(`Game created with ID: ${response.gameId}, URL: ${url}`);
-        // Automatically join the room as host to receive updates
-        socket?.emit('join-game', { gameId: response.gameId, name: 'Host', team: 'N/A' });
+        console.log('createGame acknowledged by server:', response);
+        if (response.gameId) {
+          setGameId(response.gameId);
+          setTeams(response.teams);
+          setBuzzes([]); // Clear any previous buzzes
+          setStartTime(null);
+          const url = `${window.location.origin}/${response.gameId}`;
+          setGameUrl(url);
+          console.log(`Game created with ID: ${response.gameId}, URL: ${url}`);
+          // Automatically join the room as host to receive updates
+          socket?.emit('join-game', { gameId: response.gameId, name: 'Host', team: 'N/A' });
+        }
       });
     }
   };
