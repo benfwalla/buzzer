@@ -1,11 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server'; 
-import { kv } from '@/lib/kv'; 
-
-interface GameState {
-  teams: string[];
-  buzzes: { team: string; name: string; time: number }[];
-  startTime: number | null;
-}
 
 export async function GET(
   request: NextRequest, 
