@@ -41,11 +41,23 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
       console.log(`Socket connected: ${socket.id}`);
 
       socket.on('create-game', ({ numTeams }: { numTeams: number }, callback) => {
-        const gameId = nanoid(6); // Generate a short unique ID
-        const teams = TEAM_COLORS.slice(0, numTeams);
-        games.set(gameId, { teams, buzzes: [], startTime: null });
-        console.log(`Game created: ${gameId} with teams: ${teams.join(', ')}`);
-        callback({ gameId, teams }); // Send gameId and teams back to host
+        try {
+          console.log(`[Server] create-game received for socket ${socket.id} with numTeams: ${numTeams}`);
+          const gameId = nanoid(6); // Generate a short unique ID
+          const teams = TEAM_COLORS.slice(0, numTeams);
+          games.set(gameId, { teams, buzzes: [], startTime: null });
+          console.log(`[Server] Game created: ${gameId} with teams: ${teams.join(', ')}`);
+          
+          console.log(`[Server] About to call callback for game ${gameId}...`);
+          callback({ gameId, teams }); // Send gameId and teams back to host
+          console.log(`[Server] Callback invoked successfully for game ${gameId}.`);
+        } catch (error) {
+          console.error(`[Server] Error in create-game handler for socket ${socket.id}:`, error);
+          // Optionally, inform the client about the error via callback if possible
+          if (typeof callback === 'function') {
+            callback({ error: 'Failed to create game on server.' });
+          }
+        }
       });
 
       socket.on('join-game', ({ gameId, name, team }: { gameId: string; name: string; team: string }) => {
