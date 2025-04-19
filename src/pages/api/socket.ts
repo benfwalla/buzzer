@@ -49,8 +49,13 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
           console.log(`[Server] Game created: ${gameId} with teams: ${teams.join(', ')}`);
           
           console.log(`[Server] About to call callback for game ${gameId}...`);
-          callback({ gameId, teams }); // Send gameId and teams back to host
-          console.log(`[Server] Callback invoked successfully for game ${gameId}.`);
+          // Ensure callback is a function before calling
+          if (typeof callback === 'function') {
+            callback({ gameId, teams }); // Send gameId and teams back to host
+            console.log(`[Server] Callback invoked successfully for game ${gameId}.`);
+          } else {
+             console.error(`[Server] Callback is not a function for socket ${socket.id} in create-game.`);
+          }
         } catch (error) {
           console.error(`[Server] Error in create-game handler for socket ${socket.id}:`, error);
           // Optionally, inform the client about the error via callback if possible
