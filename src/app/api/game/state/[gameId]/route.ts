@@ -10,10 +10,10 @@ interface GameState {
 
 export async function GET(
   request: Request,
-  { params }: { params: { gameId: string } }
+  context: { params: { gameId: string } }
 ) {
   try {
-    const gameId = params.gameId;
+    const gameId = context.params.gameId;
 
     if (!gameId) {
       return NextResponse.json({ error: 'Game ID is required.' }, { status: 400 });
