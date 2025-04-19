@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import { getTeamColor } from '@/lib/utils';
 
 interface ApiGameState {
   teams: string[];
@@ -24,7 +25,6 @@ export default function PlayerPage() {
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
-  const [isBuzzingDisabled, setIsBuzzingDisabled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +52,6 @@ export default function PlayerPage() {
         }
         const gameState: ApiGameState = await response.json();
         setAvailableTeams(gameState.teams || []);
-        setIsBuzzingDisabled(gameState.buzzes && gameState.buzzes.length > 0);
         console.log('Initial game state fetched:', gameState);
 
       } catch (err: unknown) {
@@ -129,14 +128,12 @@ export default function PlayerPage() {
       setError((prev) => prev ? `${prev} & Failed Pusher subscribe.` : `Failed to subscribe to game channel (${status}).`);
     });
 
-    newChannel.bind('new-buzz', () => {
-      console.log('Pusher received new-buzz');
-      setIsBuzzingDisabled(true); 
+    newChannel.bind('new-buzz', (data: { team: string; name: string; time: number }) => {
+      console.log('Pusher received new-buzz:', data);
     });
 
     newChannel.bind('reset-buzzes', () => {
       console.log('Pusher received reset-buzzes');
-      setIsBuzzingDisabled(false); 
     });
 
     setChannel(newChannel);
@@ -149,8 +146,7 @@ export default function PlayerPage() {
         setChannel(null);
       }
     };
-  }, [pusherClient, gameId, error, channel]); 
-
+  }, [pusherClient, gameId, error, isConfigured]);
 
   const handleJoin = () => {
     if (name.trim() && selectedTeam && gameId) {
@@ -168,13 +164,11 @@ export default function PlayerPage() {
   };
 
   const handleBuzz = async () => {
-    if (!isConfigured || !gameId || isBuzzingDisabled || !pusherClient || pusherClient.connection.state !== 'connected') {
-      console.warn('Buzz attempt blocked:', { isConfigured, gameId, isBuzzingDisabled, pusherConnected: pusherClient?.connection.state });
+    if (!isConfigured || !gameId || !pusherClient || pusherClient.connection.state !== 'connected') {
+      console.warn('Buzz attempt blocked:', { isConfigured, gameId, pusherConnected: pusherClient?.connection.state });
       return;
     }
 
-    setIsBuzzingDisabled(true);
-    
     console.log(`Player ${name} buzzing for team ${selectedTeam} in game ${gameId}`);
 
     try {
@@ -188,17 +182,14 @@ export default function PlayerPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.error || `Failed to send buzz (Status: ${response.status})`);
       }
 
       console.log('Buzz sent successfully via API');
-      // No need to change state here; Pusher 'new-buzz' event confirms and disables for all
-
     } catch (err: unknown) {
       console.error('Error sending buzz:', err);
       const message = err instanceof Error ? err.message : String(err);
       setError(`Failed to send buzz: ${message}`);
-      // Keep buzzing disabled, host reset is needed
     }
   };
 
@@ -284,11 +275,15 @@ export default function PlayerPage() {
         <p className="text-lg">Ready, <span className="font-semibold">{name}</span> ({selectedTeam} Team)?</p>
         <Button
           onClick={handleBuzz}
-          disabled={isBuzzingDisabled || !pusherClient || pusherClient.connection.state !== 'connected'} 
-          className={`w-64 h-64 rounded-full text-4xl font-bold shadow-lg transition-all duration-150 ease-in-out ${isBuzzingDisabled ? 'bg-gray-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 active:scale-95'}`}
-        >
-          {isBuzzingDisabled ? 'BUZZED' : 'BUZZ!'}
-        </Button>
+          disabled={!pusherClient || pusherClient.connection.state !== 'connected'} 
+          className={`w-64 h-64 rounded-full text-4xl font-bold text-white shadow-lg transition-all duration-150 ease-in-out 
+                      active:scale-95 
+                      ${(!pusherClient || pusherClient.connection.state !== 'connected') ? 'bg-gray-500 cursor-not-allowed' : ''}` // Gray if disconnected
+          }
+          style={(!pusherClient || pusherClient.connection.state !== 'connected') ? {} : { backgroundColor: getTeamColor(selectedTeam) }}
+         >
+           BUZZ!
+         </Button>
         <Button onClick={() => {setIsConfigured(false); setError(null);}} variant="link" size="sm" className="mt-6 text-muted-foreground">
           Change Name/Team
         </Button>

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { getTeamColor } from '@/lib/utils';
 
 interface PlayerBuzz {
   name: string;
@@ -260,7 +261,8 @@ export default function HostPage() {
                     <li key={`${buzz.name}-${buzz.team}-${buzz.time}-${index}`} className={`p-3 rounded-md ${index === 0 ? 'bg-primary text-primary-foreground shadow-lg' : 'bg-secondary text-secondary-foreground'}`}>
                       <div className="flex justify-between items-center">
                         <span className={`font-semibold ${index === 0 ? 'text-xl' : ''}`}>
-                          {index + 1}. {buzz.name} ({buzz.team})
+                          {index + 1}. {buzz.name} 
+                          (<span style={{ color: index === 0 ? 'inherit' : getTeamColor(buzz.team) }}>{buzz.team}</span>)
                         </span>
                         {index > 0 && (
                           <span className="text-xs font-mono text-muted-foreground pl-2">
