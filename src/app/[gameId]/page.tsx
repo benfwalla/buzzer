@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Pusher, { Channel } from 'pusher-js';
 import { Button } from '@/components/ui/button';
@@ -55,9 +55,10 @@ export default function PlayerPage() {
         setIsBuzzingDisabled(gameState.buzzes && gameState.buzzes.length > 0);
         console.log('Initial game state fetched:', gameState);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Error fetching game state:', err);
-        setError(err.message);
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
         setAvailableTeams([]); 
       } finally {
         setIsLoading(false);
@@ -81,7 +82,7 @@ export default function PlayerPage() {
       cluster: pusherCluster,
     });
 
-    client.connection.bind('error', (err: any) => {
+    client.connection.bind('error', (err: { error?: { data?: { message?: string } } }) => {
       console.error('Pusher connection error:', err);
        setError((prev) => prev ? `${prev} & Pusher connection failed.` : `Pusher connection failed: ${err.error?.data?.message || 'Error'}`);
     });
@@ -148,7 +149,7 @@ export default function PlayerPage() {
         setChannel(null);
       }
     };
-  }, [pusherClient, gameId, error]); 
+  }, [pusherClient, gameId, error, channel]); 
 
 
   const handleJoin = () => {
@@ -193,9 +194,10 @@ export default function PlayerPage() {
       console.log('Buzz sent successfully via API');
       // No need to change state here; Pusher 'new-buzz' event confirms and disables for all
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error sending buzz:', err);
-      setError(`Failed to send buzz: ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Failed to send buzz: ${message}`);
       // Keep buzzing disabled, host reset is needed
     }
   };

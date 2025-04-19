@@ -16,16 +16,28 @@ export const pusherServer = new PusherServer({
   useTLS: true, // Recommended for secure connections
 });
 
-// Helper function to trigger events
-// We'll use public channels for simplicity for now
-export const triggerPusherEvent = async (gameId: string, event: string, data: any) => {
-  const channelName = `public-game-${gameId}`;
-  try {
-    console.log(`[Pusher Server] Triggering event '${event}' on channel '${channelName}'`);
-    await pusherServer.trigger(channelName, event, data);
-    console.log(`[Pusher Server] Event '${event}' triggered successfully on '${channelName}'.`);
-  } catch (error) {
-    console.error(`[Pusher Server] Error triggering event '${event}' on channel '${channelName}':`, error);
-    // Decide if you want to re-throw or handle
+/**
+ * Triggers a Pusher event on a specific game channel.
+ * @param gameId The ID of the game to target.
+ * @param eventName The name of the event to trigger.
+ * @param data The data payload for the event.
+ */
+export async function triggerPusherEvent(
+  gameId: string,
+  eventName: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  if (!gameId || !eventName) {
+    console.error('[Pusher Trigger] Error: gameId and eventName are required.');
+  } else {
+    const channelName = `public-game-${gameId}`;
+    try {
+      console.log(`[Pusher Server] Triggering event '${eventName}' on channel '${channelName}'`);
+      await pusherServer.trigger(channelName, eventName, data);
+      console.log(`[Pusher Server] Event '${eventName}' triggered successfully on '${channelName}'.`);
+    } catch (error) {
+      console.error(`[Pusher Server] Error triggering event '${eventName}' on channel '${channelName}':`, error);
+      // Decide if you want to re-throw or handle
+    }
   }
 };

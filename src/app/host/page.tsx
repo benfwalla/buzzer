@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import Pusher, { Channel } from 'pusher-js'; 
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ export default function HostPage() {
   const [gameId, setGameId] = useState<string | null>(null);
   const [teams, setTeams] = useState<string[]>([]);
   const [buzzes, setBuzzes] = useState<PlayerBuzz[]>([]);
-  const [startTime, setStartTime] = useState<number | null>(null);
   const [gameUrl, setGameUrl] = useState<string>('');
   const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
   const [channel, setChannel] = useState<Channel | null>(null); 
@@ -96,9 +95,6 @@ export default function HostPage() {
       console.log('Pusher received new-buzz:', data);
       setBuzzes((prevBuzzes) => {
         const updatedBuzzes = [...prevBuzzes, data].sort((a, b) => a.time - b.time);
-        if (updatedBuzzes.length === 1) {
-          setStartTime(Date.now() - data.time);
-        }
         return updatedBuzzes;
       });
     });
@@ -106,7 +102,6 @@ export default function HostPage() {
     newChannel.bind('reset-buzzes', () => {
       console.log('Pusher received reset-buzzes');
       setBuzzes([]);
-      setStartTime(null);
     });
 
     setChannel(newChannel);
@@ -119,7 +114,7 @@ export default function HostPage() {
         setChannel(null);
       }
     };
-  }, [pusherClient, gameId, pusherConnectionState]);
+  }, [pusherClient, gameId, pusherConnectionState, channel]);
 
   const handleCreateGame = async () => {
     console.log('handleCreateGame called with numTeams:', numTeams);
@@ -144,14 +139,14 @@ export default function HostPage() {
       setGameId(newGameId);
       setTeams(newTeams);
       setBuzzes([]);
-      setStartTime(null);
       const url = `${window.location.origin}/${newGameId}`;
       setGameUrl(url);
       console.log(`Game setup complete. URL: ${url}`);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating game:', err);
-      setError(`Failed to create game: ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Failed to create game: ${message}`);
       setGameId(null);
     }
   };
@@ -176,9 +171,10 @@ export default function HostPage() {
 
       console.log('Buzzes reset successfully via API');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error resetting buzzes:', err);
-      setError(`Failed to reset buzzes: ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Failed to reset buzzes: ${message}`);
     }
   };
 
@@ -286,7 +282,6 @@ export default function HostPage() {
              setGameUrl(''); 
              setTeams([]); 
              setBuzzes([]); 
-             setStartTime(null);
             }} variant="outline">
              End Game & Setup New One
            </Button>
