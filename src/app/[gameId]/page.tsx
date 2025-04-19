@@ -276,11 +276,15 @@ export default function PlayerPage() {
         <Button
           onClick={handleBuzz}
           disabled={!pusherClient || pusherClient.connection.state !== 'connected'} 
-          className={`w-64 h-64 rounded-full text-4xl font-bold text-white shadow-lg transition-all duration-150 ease-in-out 
-                      active:scale-95 
-                      ${(!pusherClient || pusherClient.connection.state !== 'connected') ? 'bg-gray-500 cursor-not-allowed' : ''}` // Gray if disconnected
+          className={`w-64 h-64 rounded-full text-4xl font-bold text-white shadow-lg transition-all duration-150 ease-in-out
+                      active:scale-95
+                      ${(!pusherClient || pusherClient.connection.state !== 'connected') ? 'cursor-not-allowed' : ''}` // Remove bg-gray-500, keep cursor
           }
-          style={(!pusherClient || pusherClient.connection.state !== 'connected') ? {} : { backgroundColor: getTeamColor(selectedTeam) }}
+          style={{
+            backgroundColor: (!pusherClient || pusherClient.connection.state !== 'connected')
+              ? '#6b7280' // Explicitly set gray hex when disabled
+              : getTeamColor(selectedTeam) // Team color when enabled
+          }}
          >
            BUZZ!
          </Button>

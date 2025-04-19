@@ -262,7 +262,7 @@ export default function HostPage() {
                       <div className="flex justify-between items-center">
                         <span className={`font-semibold ${index === 0 ? 'text-xl' : ''}`}>
                           {index + 1}. {buzz.name} 
-                          (<span style={{ color: index === 0 ? 'inherit' : getTeamColor(buzz.team) }}>{buzz.team}</span>)
+                          (<span style={{ color: getTeamColor(buzz.team) }}>{buzz.team}</span>)
                         </span>
                         {index > 0 && (
                           <span className="text-xs font-mono text-muted-foreground pl-2">
