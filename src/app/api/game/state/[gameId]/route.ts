@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { kv } from '@/lib/kv';
 
 // Define the structure for game state stored in KV
@@ -9,14 +9,14 @@ interface GameState {
 }
 
 export async function GET(
-  request: Request,
-  context: { params: { gameId: string } }
+  request: NextRequest,
+  context: any
 ) {
   try {
-    const gameId = context.params.gameId;
+    const gameId = context.params?.gameId;
 
     if (!gameId) {
-      return NextResponse.json({ error: 'Game ID is required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Game ID is required or missing in context.' }, { status: 400 });
     }
 
     const key = `game:${gameId}`;
