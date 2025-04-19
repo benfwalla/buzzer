@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import io, { Socket } from 'socket.io-client';
+import Pusher, { Channel } from 'pusher-js'; 
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,16 +12,8 @@ import { Separator } from '@/components/ui/separator';
 interface PlayerBuzz {
   name: string;
   team: string;
-  timestamp: number;
+  time: number;
 }
-
-interface GameState {
-  teams: string[];
-  buzzes: PlayerBuzz[];
-  startTime: number | null;
-}
-
-let socket: Socket | null = null;
 
 export default function HostPage() {
   const [numTeams, setNumTeams] = useState<number>(2);
@@ -30,87 +22,181 @@ export default function HostPage() {
   const [buzzes, setBuzzes] = useState<PlayerBuzz[]>([]);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [gameUrl, setGameUrl] = useState<string>('');
-
-  console.log('HostPage render: numTeams =', numTeams, 'gameId =', gameId);
-
-  const socketInitializer = useCallback(async () => {
-    // Ensure only one connection
-    if (socket) return;
-
-    await fetch('/api/socket'); // Initialize the backend socket server
-    socket = io();
-
-    socket.on('connect', () => {
-      console.log('Host connected to socket server');
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Host disconnected');
-      // Optionally handle reconnection or cleanup
-    });
-
-    socket.on('game-update', (gameState: GameState) => {
-      console.log('Received game update:', gameState);
-      setBuzzes(gameState.buzzes);
-      setStartTime(gameState.startTime);
-      // Update teams only if they haven't been set yet during creation
-      if (teams.length === 0) {
-          setTeams(gameState.teams);
-      }
-    });
-
-    // Clean up on component unmount
-    return () => {
-      if (socket) {
-        console.log('Disconnecting host socket');
-        socket.disconnect();
-        socket = null;
-      }
-    };
-  }, [teams.length]); // Add teams.length dependency
+  const [pusherClient, setPusherClient] = useState<Pusher | null>(null);
+  const [channel, setChannel] = useState<Channel | null>(null); 
+  const [error, setError] = useState<string | null>(null);
+  const [pusherConnectionState, setPusherConnectionState] = useState<string>('initializing');
 
   useEffect(() => {
-    socketInitializer();
-  }, [socketInitializer]);
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_APP_KEY;
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-  // Function to handle game creation
-  const handleCreateGame = () => {
-    console.log('handleCreateGame called. Socket available?', !!socket);
-    if (socket && numTeams > 0) {
-      console.log('Emitting createGame with numTeams:', numTeams);
-      socket.emit('create-game', { numTeams }, (response: { gameId: string; teams: string[] }) => {
-        console.log('createGame acknowledged by server:', response);
-        if (response.gameId) {
-          setGameId(response.gameId);
-          setTeams(response.teams);
-          setBuzzes([]); // Clear any previous buzzes
-          setStartTime(null);
-          const url = `${window.location.origin}/${response.gameId}`;
-          setGameUrl(url);
-          console.log(`Game created with ID: ${response.gameId}, URL: ${url}`);
-          // Automatically join the room as host to receive updates
-          socket?.emit('join-game', { gameId: response.gameId, name: 'Host', team: 'N/A' });
+    if (!pusherKey || !pusherCluster) {
+      console.error('Pusher environment variables not set!');
+      setError('Pusher configuration is missing. Real-time updates will not work.');
+      return;
+    }
+
+    console.log('Initializing Pusher client...');
+    const client = new Pusher(pusherKey, { 
+      cluster: pusherCluster,
+    });
+
+    const states: string[] = ['connecting', 'connected', 'disconnected', 'failed', 'unavailable'];
+    
+    states.forEach(state => {
+        client.connection.bind(state, () => {
+            setPusherConnectionState(state);
+            
+            if (state === 'connected') {
+                setError((prev) => prev?.includes('Pusher') ? null : prev);
+            } else if (state === 'failed' || state === 'unavailable') {
+                console.error(`Pusher connection failed/unavailable. State: ${state}`);
+                setError((prev) => prev ? `${prev} & Pusher connection failed.` : 'Pusher connection failed.');
+            }
+        });
+    });
+
+    setPusherConnectionState(client.connection.state);
+
+    setPusherClient(client);
+
+    return () => {
+      console.log('Disconnecting Pusher client...');
+      client.disconnect();
+      setPusherClient(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pusherConnectionState !== 'connected' || !gameId || !pusherClient) { 
+       if (channel) {
+         console.log(`Unsubscribing from Pusher channel: ${channel.name}`);
+         channel.unbind_all(); 
+         pusherClient?.unsubscribe(channel.name); 
+         setChannel(null);
+       }
+       return;
+    }
+
+    const channelName = `public-game-${gameId}`;
+    console.log(`Subscribing to Pusher channel: ${channelName}`);
+    const newChannel = pusherClient.subscribe(channelName);
+
+    newChannel.bind('pusher:subscription_succeeded', () => {
+      console.log(`Successfully subscribed to ${channelName}`);
+    });
+
+    newChannel.bind('pusher:subscription_error', (status: number) => {
+      console.error(`Failed to subscribe to ${channelName}, status: ${status}`);
+      setError(`Failed to subscribe to game channel (${status}). Real-time updates may not work.`);
+    });
+
+    newChannel.bind('new-buzz', (data: PlayerBuzz) => {
+      console.log('Pusher received new-buzz:', data);
+      setBuzzes((prevBuzzes) => {
+        const updatedBuzzes = [...prevBuzzes, data].sort((a, b) => a.time - b.time);
+        if (updatedBuzzes.length === 1) {
+          setStartTime(Date.now() - data.time);
         }
+        return updatedBuzzes;
       });
+    });
+
+    newChannel.bind('reset-buzzes', () => {
+      console.log('Pusher received reset-buzzes');
+      setBuzzes([]);
+      setStartTime(null);
+    });
+
+    setChannel(newChannel);
+
+    return () => {
+      if (pusherClient && newChannel) {
+        console.log(`Unsubscribing from Pusher channel: ${newChannel.name}`);
+        newChannel.unbind_all();
+        pusherClient.unsubscribe(newChannel.name);
+        setChannel(null);
+      }
+    };
+  }, [pusherClient, gameId, pusherConnectionState]);
+
+  const handleCreateGame = async () => {
+    console.log('handleCreateGame called with numTeams:', numTeams);
+    setError(null);
+    try {
+      const response = await fetch('/api/game/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ numTeams }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const { gameId: newGameId, teams: newTeams } = await response.json();
+      console.log('Game created successfully via API:', { newGameId, newTeams });
+
+      setGameId(newGameId);
+      setTeams(newTeams);
+      setBuzzes([]);
+      setStartTime(null);
+      const url = `${window.location.origin}/${newGameId}`;
+      setGameUrl(url);
+      console.log(`Game setup complete. URL: ${url}`);
+
+    } catch (err: any) {
+      console.error('Error creating game:', err);
+      setError(`Failed to create game: ${err.message}`);
+      setGameId(null);
     }
   };
 
-  const handleResetBuzzes = () => {
-    if (socket && gameId) {
-      socket.emit('reset-buzzes', { gameId });
+  const handleResetBuzzes = async () => {
+    if (!gameId) return;
+    console.log(`handleResetBuzzes called for game: ${gameId}`);
+    setError(null);
+    try {
+      const response = await fetch('/api/game/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gameId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      console.log('Buzzes reset successfully via API');
+
+    } catch (err: any) {
+      console.error('Error resetting buzzes:', err);
+      setError(`Failed to reset buzzes: ${err.message}`);
     }
   };
 
-  const formatTimeDiff = (timestamp: number): string => {
-    if (!startTime || timestamp === startTime) {
-      return ''; // No diff for the first buzz
+  const formatTimeDiff = (relativeTimeMs: number): string => {
+    if (relativeTimeMs <= 10) {
+      return '';
     }
-    const diff = timestamp - startTime;
-    return `+${(diff / 1000).toFixed(3)}s`;
+    return `+${(relativeTimeMs / 1000).toFixed(3)}s`;
   };
 
   return (
     <div className="container mx-auto p-4 flex flex-col items-center min-h-screen bg-background text-foreground">
+      {error && (
+        <div className="w-full max-w-lg p-4 mb-4 text-center text-red-700 bg-red-100 border border-red-400 rounded">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+      
       {!gameId ? (
         <Card className="w-full max-w-md mt-10">
           <CardHeader>
@@ -135,7 +221,15 @@ export default function HostPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleCreateGame} className="w-full">Start Game</Button>
+            <Button
+              onClick={handleCreateGame}
+              className="w-full"
+              disabled={pusherConnectionState !== 'connected'}
+            >
+              {pusherConnectionState === 'connected' ? 'Start Game' : 
+               pusherConnectionState === 'connecting' ? 'Connecting...' : 
+               `Pusher: ${pusherConnectionState}`}
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -167,14 +261,14 @@ export default function HostPage() {
               ) : (
                 <ul className="space-y-3">
                   {buzzes.map((buzz, index) => (
-                    <li key={`${buzz.name}-${buzz.timestamp}-${index}`} className={`p-3 rounded-md ${index === 0 ? 'bg-primary text-primary-foreground shadow-lg' : 'bg-secondary text-secondary-foreground'}`}>
+                    <li key={`${buzz.name}-${buzz.team}-${buzz.time}-${index}`} className={`p-3 rounded-md ${index === 0 ? 'bg-primary text-primary-foreground shadow-lg' : 'bg-secondary text-secondary-foreground'}`}>
                       <div className="flex justify-between items-center">
                         <span className={`font-semibold ${index === 0 ? 'text-xl' : ''}`}>
                           {index + 1}. {buzz.name} ({buzz.team})
                         </span>
-                        {index > 0 && startTime && (
+                        {index > 0 && (
                           <span className="text-xs font-mono text-muted-foreground pl-2">
-                             {formatTimeDiff(buzz.timestamp)}
+                             {formatTimeDiff(buzz.time)}
                            </span>
                         )}
                       </div>
@@ -186,7 +280,14 @@ export default function HostPage() {
             </CardContent>
           </Card>
 
-           <Button onClick={() => { setGameId(null); setGameUrl(''); setTeams([]); setBuzzes([]); /* Optionally disconnect/reconnect logic if needed */ }} variant="outline">
+           <Button onClick={() => { 
+             setError(null);
+             setGameId(null); 
+             setGameUrl(''); 
+             setTeams([]); 
+             setBuzzes([]); 
+             setStartTime(null);
+            }} variant="outline">
              End Game & Setup New One
            </Button>
         </div>
