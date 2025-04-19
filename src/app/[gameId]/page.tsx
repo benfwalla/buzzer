@@ -13,7 +13,7 @@ let socket: Socket | null = null;
 
 export default function PlayerPage() {
   const params = useParams();
-  const gameId = params.gameId as string;
+  const gameId = typeof params?.gameId === 'string' ? params.gameId : null;
 
   const [name, setName] = useState<string>('');
   const [selectedTeam, setSelectedTeam] = useState<string>('');
@@ -23,15 +23,13 @@ export default function PlayerPage() {
   const [buzzedMessage, setBuzzedMessage] = useState<string>('');
 
   const socketInitializer = useCallback(async () => {
-    // Prevent multiple connections
     if (socket || !gameId) return;
 
-    await fetch('/api/socket'); // Ensure backend server is running
+    await fetch('/api/socket'); 
     socket = io();
 
     socket.on('connect', () => {
       console.log(`Player connected for game ${gameId}`);
-      // Request game info (teams) after connecting
       socket?.emit('get-game-info', { gameId }, (response: { teams?: string[], error?: string }) => {
           if (response.teams) {
               setAvailableTeams(response.teams);
@@ -55,11 +53,7 @@ export default function PlayerPage() {
 
     socket.on('disconnect', () => {
       console.log('Player disconnected');
-      // Maybe show a disconnected message
     });
-
-    // Optional: Listen for game updates if needed (e.g., if game resets)
-    // socket.on('game-update', (gameState) => { ... });
 
     return () => {
       if (socket) {
@@ -74,15 +68,20 @@ export default function PlayerPage() {
     socketInitializer();
   }, [socketInitializer]);
 
+  if (!gameId) {
+    return (
+        <div className="container mx-auto p-4 flex justify-center items-center min-h-screen">
+            <p className="text-muted-foreground">Loading game details...</p>
+        </div>
+    );
+  }
+
   const handleJoin = () => {
     if (name.trim() && selectedTeam && gameId) {
       setIsConfigured(true);
-      setBuzzedMessage(''); // Clear buzz message when re-configuring maybe?
-      // No need to explicitly join the room here, buzzing will handle it implicitly
-      // via the server logic (or we could add join-game if needed for other features)
+      setBuzzedMessage(''); 
       console.log(`Player ${name} (${selectedTeam}) configured for game ${gameId}`);
     } else {
-        // Basic validation feedback
         if (!name.trim()) alert('Please enter your name.');
         else if (!selectedTeam) alert('Please select your team.');
     }
@@ -92,8 +91,7 @@ export default function PlayerPage() {
     if (socket && isConfigured && gameId) {
       socket.emit('buzz', { gameId, name, team: selectedTeam });
       setBuzzedMessage('Buzzed!');
-      // Optional: Disable button temporarily after buzz
-      setTimeout(() => setBuzzedMessage(''), 1500); // Clear message after 1.5s
+      setTimeout(() => setBuzzedMessage(''), 1500); 
     }
   };
 
@@ -114,7 +112,6 @@ export default function PlayerPage() {
   }
 
    if (availableTeams.length === 0 && !errorMessage) {
-        // Still loading or invalid state before error
         return (
             <div className="container mx-auto p-4 flex justify-center items-center min-h-screen">
                 <p className="text-muted-foreground">Loading game info...</p>
@@ -137,7 +134,7 @@ export default function PlayerPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter your name"
-                maxLength={20} // Prevent overly long names
+                maxLength={20} 
               />
             </div>
             <div>
